@@ -37,7 +37,7 @@ jobs:
         with:
           context: .
           push: true
-          tags: ghcr.io/kwewk/${{ github.event.repository.name }}:latest
+          tags: ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:latest
 
   deploy-to-cloud:
     runs-on: ubuntu-latest
@@ -53,4 +53,4 @@ jobs:
         uses: azure/webapps-deploy@v2
         with:
           app-name: practicum
-          images: ghcr.io/kwewk/${{ github.event.repository.name }}:latest
+          images: ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:latest
