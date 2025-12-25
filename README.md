@@ -169,3 +169,80 @@ const mealSchema = z.object({
 
 ### Валідація zod
 ![zod](images/zod.png)
+
+## Неперервна інтеграція (CI/CD)
+
+### GitHub Actions Workflow
+
+Для автоматизації процесу збірки, публікації Docker-образу та деплою створено workflow у файлі `.github/workflows/publish.yml`.
+
+#### Тригери запуску
+
+Workflow автоматично запускається у таких випадках:
+- **Ручний запуск** через інтерфейс GitHub (`workflow_dispatch`)
+- **Автоматично при push** у гілки:
+  - `main`
+  - `feature/*`
+
+#### Дозволи (Permissions)
+```yaml
+permissions:
+  packages: write    # Дозвіл на публікацію пакетів
+  contents: read     # Дозвіл на читання репозиторію
+```
+
+#### Структура Workflow
+
+Workflow складається з двох послідовних jobs:
+
+### Job 1: build-and-push
+
+Виконується на `ubuntu-latest` та включає наступні кроки:
+
+1. **Checkout repository** (`actions/checkout@v4`)
+   - Клонування коду репозиторію
+
+2. **Install pnpm → dependencies → build**
+   - Встановлення пакетного менеджера pnpm
+   - Встановлення залежностей проєкту (`pnpm install`)
+   - Збірка проєкту (`pnpm run build`)
+
+3. **Login to GitHub Container Registry** (`docker/login-action@v3`)
+   - Авторизація в GitHub Container Registry (ghcr.io)
+   - Використовується вбудований `GITHUB_TOKEN`
+   - Username отримується з контексту `github.actor`
+
+4. **Build and push Docker image** (`docker/build-push-action@v6`)
+   - Збірка Docker-образу з поточної директорії
+   - Публікація образу в GitHub Container Registry
+   - Тег образу: `ghcr.io/{{owner}}/{{repository}}:latest`
+
+### Job 2: deploy-to-cloud
+
+Виконується після успішного завершення `build-and-push` (залежність `needs: build-and-push`):
+
+1. **Login to Azure** (`azure/login@v2`)
+   - Авторизація в Azure за допомогою credentials зі secrets
+
+2. **Deploy to Azure Web App** (`azure/webapps-deploy@v2`)
+   - Деплой Docker-контейнера на Azure Web App з назвою `practicum`
+   - Використовується щойно створений образ з GitHub Container Registry
+
+#### Використання GitHub Context
+
+У workflow використовуються змінні з GitHub context для динамічного формування назв:
+- `${{ github.actor }}` — ім'я користувача, що запустив workflow
+- `${{ github.repository_owner }}` — власник репозиторію
+- `${{ github.event.repository.name }}` — назва репозиторію
+
+#### Secrets
+
+Для роботи workflow налаштовано наступні secrets:
+- `GITHUB_TOKEN` — автоматично надається GitHub Actions
+- `AZURE_CREDENTIALS` — облікові дані для Azure (налаштовано вручну)
+
+---
+
+## GitHub Skills
+- [Hello GitHub Actions](https://github.com/kwewk/skills-hello-github-actions)
+- [Publish Packages](https://github.com/kwewk/skills-publish-packages)
